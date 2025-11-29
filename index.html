@@ -2269,6 +2269,10 @@
         let animationFrameId = null;
         let leaderboard = JSON.parse(localStorage.getItem('scratchKingLeaderboard') || '[]');
         
+        // Pause time tracking - critical for preventing timer exploits
+        let totalPausedTime = 0;
+        let pauseStartTime = 0;
+        
         // Game statistics
         let nearMisses = 0;
         let flamesCollected = 0;
@@ -2890,7 +2894,7 @@
             const gamesPlayed = musicProgress.gamesPlayed || 0;
             
             // Ensure arrays exist
-            if (!musicProgress.unlockedTracks) musicProgress.unlockedTracks = ['hazardChase1', 'laundryDay'];
+            if (!musicProgress.unlockedTracks) musicProgress.unlockedTracks = ['hazardous1', 'laundryDay'];
             if (!musicProgress.hiddenAchievements) musicProgress.hiddenAchievements = [];
             
             // Laundry Day - unlock for Casual achievement (2 games)
@@ -2898,9 +2902,9 @@
                 unlockTrack('laundryDay');
             }
             
-            // Hazard Chase 2 - 5 games
-            if (gamesPlayed >= 5 && !musicProgress.unlockedTracks.includes('hazardChase2')) {
-                unlockTrack('hazardChase2');
+            // Hazardous 2 - 5 games
+            if (gamesPlayed >= 5 && !musicProgress.unlockedTracks.includes('hazardous2')) {
+                unlockTrack('hazardous2');
             }
             
             // Whispers in the Fog - 25 plays
@@ -4736,6 +4740,8 @@
             spawnInterval = INITIAL_SPAWN_INTERVAL;
             lastSpawnTime = 0; // Start fresh - first obstacle spawns after INITIAL_SPAWN_INTERVAL
             gameStartTime = Date.now();
+            totalPausedTime = 0; // Reset pause tracking
+            pauseStartTime = 0;
             achievementsProgress.flamesThisRun = 0; // Reset flames for this run
             
             // Reset Ball in Hand system
@@ -4767,7 +4773,7 @@
         function updateGame() {
             if (gameState !== 'playing') return;
 
-            const currentTime = Date.now() - gameStartTime + bonusTime;
+            const currentTime = Date.now() - gameStartTime - totalPausedTime + bonusTime;
 
             // Update timer display
             const totalSeconds = Math.floor(currentTime / 1000);
@@ -5906,7 +5912,7 @@
             }
             
             // Calculate elapsed time
-            const elapsedMs = Date.now() - gameStartTime + bonusTime;
+            const elapsedMs = Date.now() - gameStartTime - totalPausedTime + bonusTime;
             const elapsedSeconds = Math.floor(elapsedMs / 1000);
             const minutes = Math.floor(elapsedSeconds / 60);
             const seconds = elapsedSeconds % 60;
@@ -6218,7 +6224,10 @@
         function showAchievementsPage() {
             const list = document.getElementById('achievementsList');
             list.innerHTML = '';
-            hiddenUnlocksRevealed = false; // Reset hidden unlocks visibility
+            
+            // Check if Scratch Prince is unlocked - automatically reveal hidden achievements
+            const scratchPrinceUnlocked = achievementsProgress.unlocked.includes('scratch_prince');
+            hiddenUnlocksRevealed = scratchPrinceUnlocked;
             
             // Group achievements by category
             const categories = {
@@ -6308,6 +6317,11 @@
             // Update lifetime flames counter
             const lifetimeFlames = achievementsProgress.flamesLifetime || 0;
             document.getElementById('lifetimeFlamesCounter').textContent = `🔥 ${lifetimeFlames}`;
+            
+            // If Scratch Prince unlocked, show hidden achievements automatically
+            if (scratchPrinceUnlocked) {
+                showHiddenUnlocks();
+            }
             
             document.getElementById('achievementsPage').classList.add('active');
         }
@@ -6710,7 +6724,7 @@
         });
         
         function gatherAnalyticsData() {
-            const currentSessionTime = gameState === 'playing' ? (Date.now() - gameStartTime + bonusTime) / 1000 : 0;
+            const currentSessionTime = gameState === 'playing' ? (Date.now() - gameStartTime - totalPausedTime + bonusTime) / 1000 : 0;
             const data = {
                 timestamp: new Date().toISOString(),
                 session: {
@@ -6926,6 +6940,7 @@
         function pauseGame(hideOverlay = false) {
             if (gameState !== 'playing') return;
             gameState = 'paused';
+            pauseStartTime = Date.now(); // Record when pause started
             if (!hideOverlay) {
                 document.getElementById('pauseOverlay').classList.add('active');
             }
@@ -6937,6 +6952,11 @@
 
         function resumeGame() {
             if (gameState !== 'paused') return;
+            // Add the duration of this pause to total paused time
+            if (pauseStartTime > 0) {
+                totalPausedTime += Date.now() - pauseStartTime;
+                pauseStartTime = 0;
+            }
             gameState = 'playing';
             document.getElementById('pauseOverlay').classList.remove('active');
             gameLoop();
