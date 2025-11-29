@@ -1,0 +1,25 @@
+{
+  "name": "Scratch King",
+  "short_name": "Scratch King",
+  "description": "An endless runner pool hall game. Dodge hazards, collect golden flames, and unlock achievements!",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a472a",
+  "theme_color": "#1a472a",
+  "icons": [
+    {
+      "src": "attached_assets/header-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "attached_assets/header-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["games", "entertainment"]
+}
