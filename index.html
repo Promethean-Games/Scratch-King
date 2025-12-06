@@ -2316,6 +2316,10 @@
         let jumpManDuration = 0;
         const JUMP_MAN_TIME = 8000; // 8 seconds - more generous for player comfort
         let playerJumpOffset = 0;
+        
+        // Jump Man lane change tracking (system check)
+        let laneChangesDuringJumpMan = 0;
+        let maxLaneChangesDuringJumpMan = 0;
         let lastPowerUpSpawn = 0;
         const POWERUP_SPAWN_INTERVAL = 20000; // spawn every 20 seconds
         
@@ -2352,6 +2356,7 @@
             flame_keeper: { id: 'flame_keeper', name: 'Flame Keeper', desc: '100 lifetime Golden Flames', target: 100, type: 'flames_lifetime', reward: 'Cue Ball Skin: Flare Core', category: 'collection', badge: '🧡' },
             hoarder_flame: { id: 'hoarder_flame', name: 'Hoarder of the Flame', desc: '500 lifetime Golden Flames', target: 500, type: 'flames_lifetime', reward: 'Cue Ball Skin: Fiery Crown', category: 'collection', badge: '🌟' },
             pyromancer: { id: 'pyromancer', name: 'Pyromancer', desc: '1000 lifetime Golden Flames', target: 1000, type: 'flames_lifetime', reward: 'Hidden tier unlock', category: 'collection', badge: '🧙', hidden: true },
+            lane_dancer: { id: 'lane_dancer', name: 'Lane Dancer', desc: '50 lane changes during Jump Man', target: 50, type: 'lane_changes_jump', reward: 'Cue Ball Skin: Disco Ball', category: 'aerial', badge: '💃', hidden: true },
             earned_my_wings: { id: 'earned_my_wings', name: 'Jump Wings', desc: 'Jump over 3 hazards in one run', target: 3, type: 'hazards_jumped', reward: 'Cue Ball Skin: Puddle Jumper', category: 'aerial', badge: '🪶' },
             air_baron: { id: 'air_baron', name: 'Wright Time', desc: 'Total air time of 12+ seconds in one run', target: 12, type: 'air_time', reward: 'Trail Effect: Flight Scarf', category: 'aerial', badge: '✈️' },
             sky_king: { id: 'sky_king', name: 'Sky King', desc: 'Jump over 25 hazards AND survive 60 seconds', target: { hazards: 25, time: 60 }, type: 'jump_combo', reward: 'Theme: Sky Zaddy', category: 'aerial', badge: '☁️' },
@@ -2361,7 +2366,7 @@
             casual: { id: 'casual', name: 'Casual', desc: 'Play twice', target: 2, type: 'games_played', reward: 'Cue Ball Skin: Paper Ball', category: 'mastery', badge: '🎯' },
             rec_league: { id: 'rec_league', name: 'Rec League', desc: 'Play 10 times', target: 10, type: 'games_played', reward: 'Cue Ball Skin: Measles Ball', category: 'mastery', badge: '🥎' },
             pro_status: { id: 'pro_status', name: 'Pro Status', desc: 'Earn 10 achievements', target: 10, type: 'achievements', reward: 'Skins: Beach Ball, Baseball & Silver Steering Wheel', category: 'mastery', badge: '💎' },
-            ascended_king: { id: 'ascended_king', name: 'Legend Status', desc: 'Earn every achievement', target: 18, type: 'achievements', reward: 'Cue Ball Skin: Beach Ball', category: 'mastery', badge: '⚡' }
+            ascended_king: { id: 'ascended_king', name: 'Legend Status', desc: 'Earn every achievement', target: 21, type: 'achievements', reward: 'Cue Ball Skin: Beach Ball', category: 'mastery', badge: '⚡' }
         };
 
         let achievementsProgress = JSON.parse(localStorage.getItem('scratchKingAchievements') || JSON.stringify({
@@ -2445,7 +2450,7 @@
             if (!achievementsProgress.unlocked.includes('pro_status') && unlockedCount >= 10) {
                 unlockAchievement('pro_status');
             }
-            // Legend Status requires all 18 public achievements
+            // Legend Status requires all public achievements (dynamically calculated)
             const totalPublicAchievements = Object.keys(ACHIEVEMENTS).filter(id => 
                 id !== 'pro_status' && id !== 'ascended_king'
             ).length;
@@ -2964,11 +2969,26 @@
             }, 4000);
         }
 
-        function incrementGamesPlayed() {
+        function incrementGamesPlayed(sessionTimeMs = 0) {
             musicProgress.gamesPlayed = (musicProgress.gamesPlayed || 0) + 1;
+            musicProgress.totalPlayTime = (musicProgress.totalPlayTime || 0) + sessionTimeMs;
             localStorage.setItem('scratchKingMusic', JSON.stringify(musicProgress));
             console.log('Games played:', musicProgress.gamesPlayed);
+            console.log('Total play time:', formatPlayTime(musicProgress.totalPlayTime));
             checkMusicUnlocks();
+        }
+        
+        function formatPlayTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${seconds}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            }
+            return `${seconds}s`;
         }
 
         // ============================================================
@@ -4172,28 +4192,6 @@
                     const totalPlayTime = (musicProgress.totalPlayTime || 0);
                     return totalPlayTime >= 3600000; // 1 hour in ms
                 }
-            },
-            snowflakeBall: {
-                id: 'snowflakeBall',
-                name: 'Snowflake Ball',
-                unlocked: false,
-                unlockDesc: 'Available Dec 1 - Jan 15',
-                imagePath: 'attached_assets/snowflake-ball.png',
-                isAnimated: true,
-                frameCount: 8,
-                frameWidth: 50,
-                fps: 8,
-                rotating: false,
-                rotationSpeed: 0,
-                hidden: true, // Hidden by default
-                seasonalUnlock: true, // Seasonal unlock
-                unlockCondition: () => {
-                    const today = new Date();
-                    const month = today.getMonth() + 1; // 1-12
-                    const day = today.getDate(); // 1-31
-                    // Visible Dec 1 - Jan 15
-                    return (month === 12 && day >= 1) || (month === 1 && day <= 15);
-                }
             }
         };
 
@@ -4569,6 +4567,11 @@
                 // Reset cruise control timer when changing lanes
                 currentLaneStartTime = Date.now();
                 console.log('Player moved to lane', playerLane);
+                // Track lane changes during Jump Man
+                if (jumpManActive) {
+                    laneChangesDuringJumpMan++;
+                    console.log('🎮 Lane changes during Jump Man:', laneChangesDuringJumpMan);
+                }
             }
         }
 
@@ -4578,6 +4581,11 @@
                 // Reset cruise control timer when changing lanes
                 currentLaneStartTime = Date.now();
                 console.log('Player moved to lane', playerLane);
+                // Track lane changes during Jump Man
+                if (jumpManActive) {
+                    laneChangesDuringJumpMan++;
+                    console.log('🎮 Lane changes during Jump Man:', laneChangesDuringJumpMan);
+                }
             }
         }
 
@@ -4762,6 +4770,8 @@
             obstacleIdCounter = 0;
             previousJumpOffset = 0;
             hasLandedThisJump = true;
+            laneChangesDuringJumpMan = 0;
+            // Note: maxLaneChangesDuringJumpMan persists across runs for session tracking
             
             // Reset cruise control tracking
             currentLaneStartTime = Date.now();
@@ -5010,9 +5020,11 @@
                     } else {
                         jumpManActive = true;
                         jumpManDuration = Date.now();
+                        laneChangesDuringJumpMan = 0; // Reset lane change counter
                         bonusTime += POWERUP_BONUS_TIME;
                         jumpsThisRun++; // Track total jumps for achievements
-                        console.log('Jump Man activated! Total jumps:', jumpsThisRun);
+                        console.log('🚀 Jump Man activated! Total jumps:', jumpsThisRun);
+                        console.log('🎮 SYSTEM CHECK: Tracking lane changes during Jump Man...');
                     }
                     powerUps.splice(i, 1);
                     playCollectSound();
@@ -5031,6 +5043,19 @@
                 if (elapsed > JUMP_MAN_TIME) {
                     jumpManActive = false;
                     playerJumpOffset = 0;
+                    // Track max lane changes during Jump Man (system check)
+                    if (laneChangesDuringJumpMan > maxLaneChangesDuringJumpMan) {
+                        maxLaneChangesDuringJumpMan = laneChangesDuringJumpMan;
+                    }
+                    console.log('🎮 SYSTEM CHECK RESULTS:');
+                    console.log('   Lane changes this Jump Man:', laneChangesDuringJumpMan);
+                    console.log('   Max lane changes ever:', maxLaneChangesDuringJumpMan);
+                    
+                    // Check for Lane Dancer achievement (50+ lane changes during Jump Man)
+                    if (!achievementsProgress.unlocked.includes('lane_dancer') && laneChangesDuringJumpMan >= 50) {
+                        unlockAchievement('lane_dancer');
+                        console.log('🏆 LANE DANCER ACHIEVEMENT UNLOCKED!');
+                    }
                 } else {
                     // Animate jump (sine wave pattern) - increased height and smoother motion for comfort
                     playerJumpOffset = Math.abs(Math.sin((elapsed / JUMP_MAN_TIME) * Math.PI * 4)) * -100;
@@ -5688,10 +5713,12 @@
                     storedJumpManTokens--;
                     jumpManActive = true;
                     jumpManDuration = Date.now();
+                    laneChangesDuringJumpMan = 0; // Reset lane change counter
                     bonusTime += POWERUP_BONUS_TIME;
                     jumpsThisRun++;
                     playCollectSound();
-                    console.log('Jump Man token activated! Remaining:', storedJumpManTokens);
+                    console.log('🚀 Jump Man token activated! Remaining:', storedJumpManTokens);
+                    console.log('🎮 SYSTEM CHECK: Tracking lane changes during Jump Man...');
                     updateJumpManTokenUI();
                 }
             });
@@ -5856,8 +5883,9 @@
             console.log('Game over! Final score:', Math.floor(score));
             gameState = 'gameOver';
             
-            // Increment games played counter for unlock tracking
-            incrementGamesPlayed();
+            // Calculate session play time and increment games played
+            const sessionTimeMs = Date.now() - gameStartTime - totalPausedTime + bonusTime;
+            incrementGamesPlayed(sessionTimeMs);
             
             playScratchSound();
             stopStartSound();
@@ -6578,6 +6606,8 @@
             const statsContent = document.getElementById('statsContent');
             const avgScore = calculateAverageScore();
             const gamesPlayed = musicProgress.gamesPlayed || 0;
+            const totalPlayTime = musicProgress.totalPlayTime || 0;
+            const formattedPlayTime = formatPlayTime(totalPlayTime);
             const highScore = localStorage.getItem('scratchKingHighScore') || 0;
             const unlockedAchievements = achievementsProgress.unlocked?.length || 0;
             const totalAchievements = Object.keys(ACHIEVEMENTS).length;
@@ -6636,12 +6666,13 @@
             // Build the stats HTML
             let html = '';
             
-            // GAMEPLAY SECTION - Stat chips in a row
+            // GAMEPLAY SECTION - Stat chips in rows
             html += sectionHeader('🎮', 'GAMEPLAY', '#4CAF50');
-            html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">`;
-            html += statChip('Games', gamesPlayed, '🎱');
+            html += `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">`;
+            html += statChip('Games Played', gamesPlayed, '🎱');
+            html += statChip('Total Play Time', formattedPlayTime, '⏱️');
             html += statChip('High Score', highScore, '👑');
-            html += statChip('Average', avgScore, '📊');
+            html += statChip('Average Score', avgScore, '📊');
             html += `</div>`;
             
             // PROGRESS SECTION - Circular gauge for achievements
