@@ -1755,7 +1755,10 @@
         <div class="tutorial-content" style="max-height: 85vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0; color: #0F0;">🏆 Achievements</h2>
-                <div id="lifetimeFlamesCounter" style="color: #FFD700; font-size: 1.2em; font-weight: bold;">🔥 0</div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div id="totalPlayTimeCounter" style="color: #4CAF50; font-size: 1em; font-weight: bold;">⏱️ 0s</div>
+                    <div id="lifetimeFlamesCounter" style="color: #FFD700; font-size: 1.2em; font-weight: bold;">🔥 0</div>
+                </div>
             </div>
             <div id="achievementsList"></div>
             <button class="btn" id="closeAchievementsBtn" style="margin-top: 20px;">Close</button>
@@ -4126,10 +4129,7 @@
                 achievementId: 'coin_collector',
                 unlockDesc: '20 Golden Flames in one run',
                 imagePath: 'attached_assets/fire-flame.gif',
-                isAnimated: true,
-                frameCount: 8,
-                frameWidth: 50,
-                fps: 8,
+                isGif: true,
                 rotating: false,
                 rotationSpeed: 0
             },
@@ -4140,10 +4140,7 @@
                 achievementId: 'hot_streak',
                 unlockDesc: '10 Golden Flames in one run',
                 imagePath: 'attached_assets/fire-flame2.gif',
-                isAnimated: true,
-                frameCount: 8,
-                frameWidth: 50,
-                fps: 8,
+                isGif: true,
                 rotating: false,
                 rotationSpeed: 0
             },
@@ -4181,10 +4178,7 @@
                 unlockTime: 3600000, // 1 hour in milliseconds
                 unlockDesc: 'Play for 1 hour total',
                 imagePath: 'attached_assets/jeffree-ball.png',
-                isAnimated: true,
-                frameCount: 8,
-                frameWidth: 50,
-                fps: 8,
+                isAnimated: false,
                 rotating: false,
                 rotationSpeed: 0,
                 hidden: true, // Hidden until unlocked
@@ -4271,8 +4265,12 @@
                     const diameter = radius * 2;
                     ctx.save();
                     
+                    // Handle GIF files - browser handles animation automatically
+                    if (skin.isGif) {
+                        ctx.drawImage(img, x - radius, y - radius, diameter, diameter);
+                    }
                     // Handle animated spritesheets
-                    if (skin.isAnimated && skin.frameCount) {
+                    else if (skin.isAnimated && skin.frameCount) {
                         const frameIndex = getSpritesheetFrame(currentSkin);
                         const sourceX = frameIndex * skin.frameWidth;
                         const sourceY = 0;
@@ -4358,8 +4356,12 @@
                 if (skin.imagePath) {
                     const img = loadSkinImage(skin.imagePath);
                     if (img.complete && img.naturalWidth > 0) {
+                        // Handle GIF files - just draw the whole image
+                        if (skin.isGif) {
+                            ctx.drawImage(img, 5, 5, 40, 40);
+                        }
                         // Handle animated spritesheets in preview (show first frame)
-                        if (skin.isAnimated && skin.frameCount) {
+                        else if (skin.isAnimated && skin.frameCount) {
                             ctx.drawImage(
                                 img,
                                 0, 0, skin.frameWidth, skin.frameWidth,  // First frame
@@ -6165,6 +6167,13 @@
                 desc: 'Play 100 games to unlock',
                 unlockCondition: () => (musicProgress.gamesPlayed || 0) >= 100,
                 reward: 'Special victory music on high score screens'
+            },
+            lane_dancer: {
+                id: 'lane_dancer',
+                name: '💃 Lane Dancer',
+                desc: 'Change lanes 50 times during a single Jump Man activation',
+                unlockCondition: () => achievementsProgress.unlocked.includes('lane_dancer'),
+                reward: 'Cue Ball Skin: Disco Ball'
             }
         };
 
@@ -6345,6 +6354,10 @@
             // Update lifetime flames counter
             const lifetimeFlames = achievementsProgress.flamesLifetime || 0;
             document.getElementById('lifetimeFlamesCounter').textContent = `🔥 ${lifetimeFlames}`;
+            
+            // Update total play time counter
+            const totalPlayTime = musicProgress.totalPlayTime || 0;
+            document.getElementById('totalPlayTimeCounter').textContent = `⏱️ ${formatPlayTime(totalPlayTime)}`;
             
             // If Scratch Prince unlocked, show hidden achievements automatically
             if (scratchPrinceUnlocked) {
