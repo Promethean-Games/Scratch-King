@@ -174,8 +174,7 @@
         #splashSettingsBtn, #splashLeaderboardBtn {
             position: absolute;
             top: 15px;
-            opacity: 0;
-            transition: opacity 3s ease-in-out;
+            opacity: 1;
             padding: 10px 18px;
             font-size: 1em;
             background: #014421;
@@ -1918,22 +1917,14 @@
         const splashScreen = document.getElementById('splashScreen');
         const splashPlayBtn = document.getElementById('splashPlayBtn');
         
-        // After 1 second, fade in all splash screen buttons
+        // After 1 second, fade in play button and how to play link
         function showSplashButtons(animated = true) {
-            console.log('showSplashButtons called, animated:', animated);
             if (animated) {
                 setTimeout(() => {
-                    console.log('Adding visible class to splash buttons');
                     const playBtn = document.getElementById('splashPlayBtn');
                     const howTo = document.getElementById('splashHowToPlay');
-                    const settings = document.getElementById('splashSettingsBtn');
-                    const leaderboard = document.getElementById('splashLeaderboardBtn');
-                    console.log('Elements found:', { playBtn: !!playBtn, howTo: !!howTo, settings: !!settings, leaderboard: !!leaderboard });
                     if (playBtn) playBtn.classList.add('visible');
                     if (howTo) howTo.classList.add('visible');
-                    if (settings) settings.classList.add('visible');
-                    if (leaderboard) leaderboard.classList.add('visible');
-                    console.log('Splash buttons should now be visible');
                 }, 1000);
                 // Fade in copyright after 5 seconds
                 setTimeout(() => {
@@ -1943,8 +1934,6 @@
                 // Show immediately without animation
                 splashPlayBtn.classList.add('visible');
                 document.getElementById('splashHowToPlay').classList.add('visible');
-                document.getElementById('splashSettingsBtn').classList.add('visible');
-                document.getElementById('splashLeaderboardBtn').classList.add('visible');
                 document.getElementById('splashCopyright').classList.add('visible');
             }
         }
