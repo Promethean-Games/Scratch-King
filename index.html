@@ -101,6 +101,7 @@
             display: inline-block;
             max-width: 80vw;
             white-space: nowrap;
+            z-index: 10;
         }
         
         #splashPlayBtn.visible {
@@ -158,6 +159,7 @@
             padding: 10px 20px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
             white-space: nowrap;
+            z-index: 10;
         }
         
         #splashHowToPlay.visible {
@@ -188,6 +190,7 @@
             display: inline-flex;
             align-items: center;
             gap: 5px;
+            z-index: 10;
         }
         
         #splashSettingsBtn {
@@ -1915,15 +1918,23 @@
         const splashScreen = document.getElementById('splashScreen');
         const splashPlayBtn = document.getElementById('splashPlayBtn');
         
-        // After 3 seconds, fade in all splash screen buttons
+        // After 1 second, fade in all splash screen buttons
         function showSplashButtons(animated = true) {
+            console.log('showSplashButtons called, animated:', animated);
             if (animated) {
                 setTimeout(() => {
-                    splashPlayBtn.classList.add('visible');
-                    document.getElementById('splashHowToPlay').classList.add('visible');
-                    document.getElementById('splashSettingsBtn').classList.add('visible');
-                    document.getElementById('splashLeaderboardBtn').classList.add('visible');
-                }, 3000);
+                    console.log('Adding visible class to splash buttons');
+                    const playBtn = document.getElementById('splashPlayBtn');
+                    const howTo = document.getElementById('splashHowToPlay');
+                    const settings = document.getElementById('splashSettingsBtn');
+                    const leaderboard = document.getElementById('splashLeaderboardBtn');
+                    console.log('Elements found:', { playBtn: !!playBtn, howTo: !!howTo, settings: !!settings, leaderboard: !!leaderboard });
+                    if (playBtn) playBtn.classList.add('visible');
+                    if (howTo) howTo.classList.add('visible');
+                    if (settings) settings.classList.add('visible');
+                    if (leaderboard) leaderboard.classList.add('visible');
+                    console.log('Splash buttons should now be visible');
+                }, 1000);
                 // Fade in copyright after 5 seconds
                 setTimeout(() => {
                     document.getElementById('splashCopyright').classList.add('visible');
